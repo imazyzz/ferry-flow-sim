@@ -35,6 +35,11 @@ export function createInitialState(config: SimulationConfig): SimulationState {
     isRunning: false,
     vehiclesProcessed: 0,
     totalWaitTime: 0,
+    queueLengthHistory: [],
+    maxQueueLength: 0,
+    maintenanceEvents: 0,
+    failureEvents: 0,
+    peakEventCount: 0,
   };
 }
 
@@ -94,6 +99,15 @@ export function updateSimulation(
 
   const newState = { ...state, time: newTime };
 
+  // Track metrics
+  newState.queueLengthHistory = [...state.queueLengthHistory, state.queue.length];
+  newState.maxQueueLength = Math.max(state.maxQueueLength, state.queue.length);
+  
+  // Track peak events
+  if (isPeakHour(newTime, config) && !isPeakHour(state.time, config)) {
+    newState.peakEventCount = state.peakEventCount + 1;
+  }
+
   // Generate new arrivals
   const arrivalRate = calculateArrivalRate(newTime, config);
   const arrivalsThisTick = Math.random() < arrivalRate ? 1 : 0;
@@ -112,6 +126,7 @@ export function updateSimulation(
       updatedFerry.maintenanceUntil = newTime + config.maintenanceDuration;
       updatedFerry.departureTime = null;
       updatedFerry.vehicles = [];
+      newState.maintenanceEvents = state.maintenanceEvents + 1;
       return updatedFerry;
     }
 

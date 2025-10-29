@@ -29,6 +29,12 @@ export interface SimulationState {
   isRunning: boolean;
   vehiclesProcessed: number;
   totalWaitTime: number;
+  // Metrics for V3
+  queueLengthHistory: number[];
+  maxQueueLength: number;
+  maintenanceEvents: number;
+  failureEvents: number;
+  peakEventCount: number;
 }
 
 export interface SimulationConfig {
