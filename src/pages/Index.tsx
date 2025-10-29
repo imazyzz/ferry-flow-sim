@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Ship } from 'lucide-react';
-import { SimulationState } from '@/types/simulation';
+import { SimulationState, SimulationConfig } from '@/types/simulation';
 import { 
   createInitialState, 
   updateSimulation, 
@@ -10,21 +10,23 @@ import {
 import { FerrySlot } from '@/components/FerrySlot';
 import { QueueLane } from '@/components/QueueLane';
 import { ControlPanel } from '@/components/ControlPanel';
+import { ConfigPanel } from '@/components/ConfigPanel';
 
 const Index = () => {
+  const [config, setConfig] = useState<SimulationConfig>(DEFAULT_CONFIG);
   const [state, setState] = useState<SimulationState>(() => createInitialState(DEFAULT_CONFIG));
   const [speed, setSpeed] = useState(1);
   const intervalRef = useRef<number>();
 
   const isPeak = () => {
-    const hour = DEFAULT_CONFIG.operationStart + Math.floor(state.time / 60);
-    return DEFAULT_CONFIG.peakHours.some(([start, end]) => hour >= start && hour < end);
+    const hour = config.operationStart + Math.floor(state.time / 60);
+    return config.peakHours.some(([start, end]) => hour >= start && hour < end);
   };
 
   useEffect(() => {
     if (state.isRunning) {
       intervalRef.current = window.setInterval(() => {
-        setState(prev => updateSimulation(prev, DEFAULT_CONFIG, speed));
+        setState(prev => updateSimulation(prev, config, speed));
       }, 1000 / speed);
     } else {
       if (intervalRef.current) {
@@ -37,14 +39,39 @@ const Index = () => {
         clearInterval(intervalRef.current);
       }
     };
-  }, [state.isRunning, speed]);
+  }, [state.isRunning, speed, config]);
 
   const handlePlayPause = () => {
     setState(prev => ({ ...prev, isRunning: !prev.isRunning }));
   };
 
   const handleReset = () => {
-    setState(createInitialState(DEFAULT_CONFIG));
+    setState(createInitialState(config));
+  };
+
+  const handleConfigChange = (newConfig: SimulationConfig) => {
+    setConfig(newConfig);
+    // Adjust existing ferries to match new config
+    setState(prev => {
+      const adjustedFerries = Array.from({ length: newConfig.ferryCount }, (_, i) => {
+        const existingFerry = prev.ferries[i];
+        if (existingFerry) {
+          return {
+            ...existingFerry,
+            capacity: newConfig.ferryCapacity,
+          };
+        }
+        return {
+          id: i,
+          state: 'idle' as const,
+          vehicles: [],
+          capacity: newConfig.ferryCapacity,
+          departureTime: null,
+          maintenanceUntil: null,
+        };
+      });
+      return { ...prev, ferries: adjustedFerries };
+    });
   };
 
   return (
@@ -68,7 +95,7 @@ const Index = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-6 py-8">
-        <div className="grid lg:grid-cols-[1fr_320px] gap-6">
+        <div className="grid lg:grid-cols-[1fr_350px] gap-6">
           {/* Simulation Area */}
           <div className="space-y-6">
             {/* Queue */}
@@ -88,11 +115,11 @@ const Index = () => {
             </div>
           </div>
 
-          {/* Control Panel */}
-          <div className="lg:sticky lg:top-6 h-fit">
+          {/* Right Sidebar - Control Panel + Config */}
+          <div className="lg:sticky lg:top-6 h-fit space-y-6">
             <ControlPanel
               isRunning={state.isRunning}
-              time={formatTime(state.time, DEFAULT_CONFIG)}
+              time={formatTime(state.time, config)}
               isPeak={isPeak()}
               speed={speed}
               vehiclesProcessed={state.vehiclesProcessed}
@@ -100,6 +127,11 @@ const Index = () => {
               onPlayPause={handlePlayPause}
               onReset={handleReset}
               onSpeedChange={setSpeed}
+            />
+            
+            <ConfigPanel
+              config={config}
+              onConfigChange={handleConfigChange}
             />
           </div>
         </div>
