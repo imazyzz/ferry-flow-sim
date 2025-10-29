@@ -1,6 +1,6 @@
-import { Play, Pause, RotateCcw, Gauge, Clock } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Play, Pause, RotateCcw, Gauge, Clock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 interface ControlPanelProps {
   isRunning: boolean;
@@ -32,14 +32,16 @@ export function ControlPanel({
         <div className="flex items-center gap-3">
           <Clock className="w-6 h-6 text-primary" />
           <div>
-            <div className="text-3xl font-bold font-mono text-foreground">{time}</div>
-            <div className="text-xs text-muted-foreground">Current Time</div>
+            <div className="text-3xl font-bold font-mono text-foreground">
+              {time}
+            </div>
+            <div className="text-xs text-muted-foreground">Tempo Atual</div>
           </div>
         </div>
-        
+
         {isPeak && (
           <Badge variant="destructive" className="animate-pulse">
-            Peak Hour
+            Horário de Pico
           </Badge>
         )}
       </div>
@@ -48,11 +50,13 @@ export function ControlPanel({
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-background/50 rounded-lg p-3">
           <div className="text-2xl font-bold text-primary">{queueLength}</div>
-          <div className="text-xs text-muted-foreground">In Queue</div>
+          <div className="text-xs text-muted-foreground">Na Fila</div>
         </div>
         <div className="bg-background/50 rounded-lg p-3">
-          <div className="text-2xl font-bold text-success">{vehiclesProcessed}</div>
-          <div className="text-xs text-muted-foreground">Processed</div>
+          <div className="text-2xl font-bold text-success">
+            {vehiclesProcessed}
+          </div>
+          <div className="text-xs text-muted-foreground">Processados</div>
         </div>
       </div>
 
@@ -67,16 +71,16 @@ export function ControlPanel({
             {isRunning ? (
               <>
                 <Pause className="w-5 h-5 mr-2" />
-                Pause
+                Pausar
               </>
             ) : (
               <>
                 <Play className="w-5 h-5 mr-2" />
-                Play
+                Reproduzir
               </>
             )}
           </Button>
-          
+
           <Button
             onClick={onReset}
             variant="outline"
@@ -91,14 +95,14 @@ export function ControlPanel({
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Gauge className="w-4 h-4" />
-            <span>Speed: {speed}x</span>
+            <span>Velocidade: {speed}x</span>
           </div>
           <div className="flex gap-2">
             {[0.5, 1, 2, 5].map((s) => (
               <Button
                 key={s}
                 onClick={() => onSpeedChange(s)}
-                variant={speed === s ? 'default' : 'outline'}
+                variant={speed === s ? "default" : "outline"}
                 size="sm"
                 className="flex-1"
               >

@@ -1,23 +1,25 @@
-import { useState, useEffect, useRef } from 'react';
-import { Ship } from 'lucide-react';
-import { SimulationState, SimulationConfig } from '@/types/simulation';
-import { 
-  createInitialState, 
-  updateSimulation, 
-  formatTime, 
-  DEFAULT_CONFIG 
-} from '@/lib/simulationEngine';
-import { FerrySlot } from '@/components/FerrySlot';
-import { QueueLane } from '@/components/QueueLane';
-import { ControlPanel } from '@/components/ControlPanel';
-import { ConfigPanel } from '@/components/ConfigPanel';
-import { SystemStatusPanel } from '@/components/SystemStatusPanel';
-import { AlertBanner } from '@/components/AlertBanner';
-import { SummaryDialog, SimulationSummary } from '@/components/SummaryDialog';
+import { useState, useEffect, useRef } from "react";
+import { Ship } from "lucide-react";
+import { SimulationState, SimulationConfig } from "@/types/simulation";
+import {
+  createInitialState,
+  updateSimulation,
+  formatTime,
+  DEFAULT_CONFIG,
+} from "@/lib/simulationEngine";
+import { FerrySlot } from "@/components/FerrySlot";
+import { QueueLane } from "@/components/QueueLane";
+import { ControlPanel } from "@/components/ControlPanel";
+import { ConfigPanel } from "@/components/ConfigPanel";
+import { SystemStatusPanel } from "@/components/SystemStatusPanel";
+import { AlertBanner } from "@/components/AlertBanner";
+import { SummaryDialog, SimulationSummary } from "@/components/SummaryDialog";
 
 const Index = () => {
   const [config, setConfig] = useState<SimulationConfig>(DEFAULT_CONFIG);
-  const [state, setState] = useState<SimulationState>(() => createInitialState(DEFAULT_CONFIG));
+  const [state, setState] = useState<SimulationState>(() =>
+    createInitialState(DEFAULT_CONFIG)
+  );
   const [speed, setSpeed] = useState(1);
   const [showSummary, setShowSummary] = useState(false);
   const intervalRef = useRef<number>();
@@ -31,7 +33,7 @@ const Index = () => {
   const calculateAvgUtilization = () => {
     if (state.ferries.length === 0) return 0;
     const activeUtilization = state.ferries.reduce((sum, ferry) => {
-      if (ferry.state === 'maintenance' || ferry.state === 'idle') return sum;
+      if (ferry.state === "maintenance" || ferry.state === "idle") return sum;
       return sum + (ferry.vehicles.length / ferry.capacity) * 100;
     }, 0);
     return activeUtilization / state.ferries.length;
@@ -42,24 +44,26 @@ const Index = () => {
     return state.totalWaitTime / state.vehiclesProcessed;
   };
 
-  const getSystemStatus = (): 'NORMAL' | 'ALERTA' | 'COLAPSO' => {
+  const getSystemStatus = (): "NORMAL" | "ALERTA" | "COLAPSO" => {
     const queueLength = state.queue.length;
     const avgUtil = calculateAvgUtilization();
     const avgWait = calculateAvgWaitTime();
 
     if (queueLength > 100 || avgUtil > 90 || avgWait > 90) {
-      return 'COLAPSO';
+      return "COLAPSO";
     }
     if (queueLength > 50 || avgUtil > 75 || avgWait > 45) {
-      return 'ALERTA';
+      return "ALERTA";
     }
-    return 'NORMAL';
+    return "NORMAL";
   };
 
   const generateSummary = (): SimulationSummary => {
-    const avgQueueLength = state.queueLengthHistory.length > 0
-      ? state.queueLengthHistory.reduce((a, b) => a + b, 0) / state.queueLengthHistory.length
-      : 0;
+    const avgQueueLength =
+      state.queueLengthHistory.length > 0
+        ? state.queueLengthHistory.reduce((a, b) => a + b, 0) /
+          state.queueLengthHistory.length
+        : 0;
 
     return {
       totalTime: state.time,
@@ -78,7 +82,7 @@ const Index = () => {
   useEffect(() => {
     if (state.isRunning) {
       intervalRef.current = window.setInterval(() => {
-        setState(prev => updateSimulation(prev, config, speed));
+        setState((prev) => updateSimulation(prev, config, speed));
       }, 1000 / speed);
     } else {
       if (intervalRef.current) {
@@ -95,13 +99,13 @@ const Index = () => {
 
   const handlePlayPause = () => {
     if (state.isRunning) {
-      // Pausing - show summary if enough time has passed
+      // Pausando - mostrar resumo se tempo suficiente passou
       if (state.time - lastPauseTimeRef.current > 60) {
         setShowSummary(true);
       }
       lastPauseTimeRef.current = state.time;
     }
-    setState(prev => ({ ...prev, isRunning: !prev.isRunning }));
+    setState((prev) => ({ ...prev, isRunning: !prev.isRunning }));
   };
 
   const handleReset = () => {
@@ -113,24 +117,27 @@ const Index = () => {
   const handleConfigChange = (newConfig: SimulationConfig) => {
     setConfig(newConfig);
     // Adjust existing ferries to match new config
-    setState(prev => {
-      const adjustedFerries = Array.from({ length: newConfig.ferryCount }, (_, i) => {
-        const existingFerry = prev.ferries[i];
-        if (existingFerry) {
+    setState((prev) => {
+      const adjustedFerries = Array.from(
+        { length: newConfig.ferryCount },
+        (_, i) => {
+          const existingFerry = prev.ferries[i];
+          if (existingFerry) {
+            return {
+              ...existingFerry,
+              capacity: newConfig.ferryCapacity,
+            };
+          }
           return {
-            ...existingFerry,
+            id: i,
+            state: "idle" as const,
+            vehicles: [],
             capacity: newConfig.ferryCapacity,
+            departureTime: null,
+            maintenanceUntil: null,
           };
         }
-        return {
-          id: i,
-          state: 'idle' as const,
-          vehicles: [],
-          capacity: newConfig.ferryCapacity,
-          departureTime: null,
-          maintenanceUntil: null,
-        };
-      });
+      );
       return { ...prev, ferries: adjustedFerries };
     });
   };
@@ -138,7 +145,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-gradient-subtle">
       {/* Alert Banner */}
-      <AlertBanner 
+      <AlertBanner
         queueLength={state.queue.length}
         avgUtilization={calculateAvgUtilization()}
         avgWaitTime={calculateAvgWaitTime()}
@@ -162,9 +169,11 @@ const Index = () => {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-foreground">
-                Ferry Queue Simulation V3
+                Simulação de Fila de Ferry
               </h1>
-              <p className="text-sm text-muted-foreground">São Luís, Brazil — Sistema Interativo</p>
+              <p className="text-sm text-muted-foreground">
+                São Luís, Brasil — Sistema Interativo
+              </p>
             </div>
           </div>
         </div>
@@ -182,10 +191,10 @@ const Index = () => {
             <div className="space-y-3">
               <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
                 <Ship className="w-5 h-5 text-primary" />
-                Ferry Terminals
+                Terminais de Ferry
               </h2>
               <div className="grid md:grid-cols-2 gap-4">
-                {state.ferries.map(ferry => (
+                {state.ferries.map((ferry) => (
                   <FerrySlot key={ferry.id} ferry={ferry} />
                 ))}
               </div>
@@ -205,18 +214,15 @@ const Index = () => {
               onReset={handleReset}
               onSpeedChange={setSpeed}
             />
-            
+
             <SystemStatusPanel
               queueLength={state.queue.length}
               ferries={state.ferries}
               avgWaitTime={calculateAvgWaitTime()}
               systemStatus={getSystemStatus()}
             />
-            
-            <ConfigPanel
-              config={config}
-              onConfigChange={handleConfigChange}
-            />
+
+            <ConfigPanel config={config} onConfigChange={handleConfigChange} />
           </div>
         </div>
       </main>
