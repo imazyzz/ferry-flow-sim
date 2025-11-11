@@ -98,7 +98,7 @@ export function ControlPanel({
             <span>Velocidade: {speed}x</span>
           </div>
           <div className="flex gap-2">
-            {[0.5, 1, 2, 5].map((s) => (
+            {[1, 2, 5, 10].map((s) => (
               <Button
                 key={s}
                 onClick={() => onSpeedChange(s)}

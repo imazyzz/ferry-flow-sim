@@ -15,17 +15,30 @@ const stateColors = {
   maintenance: "border-ferry-maintenance bg-ferry-maintenance/10",
 };
 
-const stateLabels = {
-  idle: "Ocioso",
-  loading: "Carregando",
-  crossing: "Cruzando",
-  unloading: "Descarregando",
-  maintenance: "Manutenção",
-};
+function getStateLabel(ferry: Ferry): string {
+  switch (ferry.state) {
+    case "maintenance":
+      return "Manutenção";
+    case "idle":
+      return `Parado — ${ferry.location === "SLZ" ? "São Luís" : "Cujupe"}`;
+    case "loading":
+      return `Embarcando — ${ferry.location === "SLZ" ? "São Luís" : "Cujupe"}`;
+    case "unloading":
+      return `Desembarcando — ${
+        ferry.location === "SLZ" ? "São Luís" : "Cujupe"
+      }`;
+    case "crossing":
+      if (ferry.direction === "SLZ_TO_CUJ") return "Travessia SLZ → CUJ";
+      if (ferry.direction === "CUJ_TO_SLZ") return "Travessia CUJ → SLZ";
+      return "Travessia";
+    default:
+      return ferry.state;
+  }
+}
 
 export function FerrySlot({ ferry }: FerrySlotProps) {
   const colorClass = stateColors[ferry.state];
-  const label = stateLabels[ferry.state];
+  const label = getStateLabel(ferry);
 
   return (
     <motion.div

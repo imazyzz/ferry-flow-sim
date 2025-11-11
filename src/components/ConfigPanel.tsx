@@ -1,4 +1,4 @@
-import { Settings, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Settings, AlertTriangle, CheckCircle2, Info } from "lucide-react";
 import { SimulationConfig } from "@/types/simulation";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
@@ -7,6 +7,7 @@ import { HelpTooltip } from "@/components/HelpTooltip";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
+import { DEFAULT_CONFIG } from "@/lib/simulationEngine";
 
 interface ConfigPanelProps {
   config: SimulationConfig;
@@ -97,6 +98,16 @@ export function ConfigPanel({ config, onConfigChange }: ConfigPanelProps) {
 
       <Separator className="bg-primary/20" />
 
+      {/* Units notice */}
+      <div className="flex items-start gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
+        <Info className="w-4 h-4 text-primary mt-0.5" />
+        <div className="text-xs text-muted-foreground">
+          Todas as entradas de tempo estão em minutos. Para valores em segundos,
+          use frações (ex.: 15s = 0.25 min). Os controles de velocidade (1x, 2x,
+          5x, 10x) ficam no painel de controle acima.
+        </div>
+      </div>
+
       {/* Help Section */}
       <div className="space-y-3">
         <div className="flex items-start gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/30">
@@ -144,6 +155,14 @@ export function ConfigPanel({ config, onConfigChange }: ConfigPanelProps) {
           Cenários Pré-Definidos
         </h4>
         <div className="grid grid-cols-1 gap-2">
+          <Button
+            onClick={() => applyPreset(DEFAULT_CONFIG)}
+            variant="secondary"
+            size="sm"
+            className="justify-start"
+          >
+            Dataset Oficial (Solicitado)
+          </Button>
           <Button
             onClick={() => applyPreset(collapsePreset)}
             variant="destructive"
@@ -216,9 +235,10 @@ export function ConfigPanel({ config, onConfigChange }: ConfigPanelProps) {
         {/* Embark Time */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label className="text-sm font-medium">Tempo Embarque (min)</Label>
-            <span className="text-sm font-bold text-primary">
-              {config.embarkTimePerVehicle.toFixed(2)}
+            <Label className="text-sm font-medium">Tempo Embarque</Label>
+            <span className="text-xs font-medium text-muted-foreground">
+              {config.embarkTimePerVehicle.toFixed(2)} min •{" "}
+              {(config.embarkTimePerVehicle * 60).toFixed(0)} s
             </span>
           </div>
           <Slider
@@ -236,11 +256,10 @@ export function ConfigPanel({ config, onConfigChange }: ConfigPanelProps) {
         {/* Disembark Time */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label className="text-sm font-medium">
-              Tempo Desembarque (min)
-            </Label>
-            <span className="text-sm font-bold text-primary">
-              {config.disembarkTimePerVehicle.toFixed(2)}
+            <Label className="text-sm font-medium">Tempo Desembarque</Label>
+            <span className="text-xs font-medium text-muted-foreground">
+              {config.disembarkTimePerVehicle.toFixed(2)} min •{" "}
+              {(config.disembarkTimePerVehicle * 60).toFixed(0)} s
             </span>
           </div>
           <Slider

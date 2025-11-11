@@ -4,8 +4,26 @@ import {
   Ferry,
   Vehicle,
   FerryState,
+  Terminal,
 } from "@/types/simulation";
 
+// All time-based values expressed in MINUTES.
+// For per-vehicle operations that are given in seconds, we convert to fractional minutes.
+// Dataset especificado pelo usuário:
+// - 4 ferries
+// - capacidade 50 veículos
+// - frequência média de saída: 60 min (intercalada) -> usada como referência para cadência mínima
+// - operação: 06h às 22h (16h = 960 min)
+// - chegadas diárias: 1200 (picos 40% entre 7-9 e 17-19)
+// - composição frota: 80% carros, 20% caminhões
+// - tempo médio embarque por veículo: 15 min (IMPORTANTE: user forneceu 15 minutos, porém isso é atípico.
+//   Assumiremos que quis dizer 15 segundos; se realmente fossem 15 minutos não haveria fluxo suficiente.
+//   Mantemos conversão para 15 segundos = 0.25 min. Caso deseje 15 minutos, ajustar para 15.)
+// - travessia: 1h20 = 80 min
+// - tempo médio desembarque por veículo: 15 segundos = 0.25 min
+// - espera fila normal: 20 min (usado apenas para métricas, não diretamente aqui)
+// - espera fila pico: 90 min (idem)
+// Observação: departureFrequency permanece para possíveis extensões, não usada diretamente na lógica atual.
 export const DEFAULT_CONFIG: SimulationConfig = {
   ferryCount: 4,
   ferryCapacity: 50,
@@ -19,12 +37,13 @@ export const DEFAULT_CONFIG: SimulationConfig = {
   ],
   peakPercentage: 0.4,
   carPercentage: 0.8,
-  embarkTimePerVehicle: 0.25, // 15 seconds
+  embarkTimePerVehicle: 0.25, // 15 segundos (~0.25 min)
   crossingTime: 80, // 1h20
-  disembarkTimePerVehicle: 0.25, // 15 seconds
+  disembarkTimePerVehicle: 0.25, // 15 segundos (~0.25 min)
   maintenanceInterval: 30,
-  maintenanceDuration: 4 * 60, // 4 hours in minutes
+  maintenanceDuration: 4 * 60, // 4 horas em minutos
   downtimeProbability: 0.05,
+  minDepartureFillRatio: 1.0,
 };
 
 export function createInitialState(config: SimulationConfig): SimulationState {
@@ -37,13 +56,16 @@ export function createInitialState(config: SimulationConfig): SimulationState {
       capacity: config.ferryCapacity,
       departureTime: null,
       maintenanceUntil: null,
+      location: (i % 2 === 0 ? "SLZ" : "CUJ") as Terminal, // intercalada nas bases
+      direction: null,
     })
   );
 
   return {
     time: 0,
     ferries,
-    queue: [],
+    queueSLZ: [],
+    queueCUJ: [],
     isRunning: false,
     vehiclesProcessed: 0,
     totalWaitTime: 0,
@@ -81,11 +103,16 @@ function calculateArrivalRate(time: number, config: SimulationConfig): number {
   return isPeakHour(time, config) ? peakRate : normalRate;
 }
 
-function generateVehicle(time: number, config: SimulationConfig): Vehicle {
+function generateVehicle(
+  time: number,
+  config: SimulationConfig,
+  origin: Terminal
+): Vehicle {
   return {
     id: `v-${time}-${Math.random().toString(36).substr(2, 9)}`,
     type: Math.random() < config.carPercentage ? "car" : "truck",
     arrivalTime: time,
+    origin,
   };
 }
 
@@ -104,11 +131,14 @@ function shouldScheduleMaintenance(
 export function updateSimulation(
   state: SimulationState,
   config: SimulationConfig,
-  deltaMinutes: number = 1
+  deltaMinutes: number = 1,
+  timeScale: number = 1 // permite acelerar o relógio lógico (1x,2x,5x,10x)
 ): SimulationState {
   if (!state.isRunning) return state;
-
-  const newTime = state.time + deltaMinutes;
+  // timeScale aplica-se ao avanço do tempo lógico sem alterar granularidade de processos
+  // Isso mantém fidelidade dos tempos relativos independentemente da velocidade de execução.
+  const scaledDelta = deltaMinutes * timeScale;
+  const newTime = state.time + scaledDelta;
   const hour = getCurrentHour(newTime, config);
 
   // Stop if outside operation hours
@@ -119,11 +149,9 @@ export function updateSimulation(
   const newState = { ...state, time: newTime };
 
   // Track metrics
-  newState.queueLengthHistory = [
-    ...state.queueLengthHistory,
-    state.queue.length,
-  ];
-  newState.maxQueueLength = Math.max(state.maxQueueLength, state.queue.length);
+  const totalQueueLen = state.queueSLZ.length + state.queueCUJ.length;
+  newState.queueLengthHistory = [...state.queueLengthHistory, totalQueueLen];
+  newState.maxQueueLength = Math.max(state.maxQueueLength, totalQueueLen);
 
   // Track peak events
   if (isPeakHour(newTime, config) && !isPeakHour(state.time, config)) {
@@ -132,11 +160,21 @@ export function updateSimulation(
 
   // Generate new arrivals
   const arrivalRate = calculateArrivalRate(newTime, config);
-  const expectedArrivals = arrivalRate * deltaMinutes;
+  const expectedArrivals = arrivalRate * scaledDelta; // total do sistema
   const arrivalsThisTick = Math.floor(expectedArrivals + Math.random());
-
   for (let i = 0; i < arrivalsThisTick; i++) {
-    newState.queue = [...newState.queue, generateVehicle(newTime, config)];
+    const toSLZ = Math.random() < 0.5; // chegada na base de origem: SLZ ou CUJ
+    if (toSLZ) {
+      newState.queueSLZ = [
+        ...newState.queueSLZ,
+        generateVehicle(newTime, config, "SLZ"),
+      ];
+    } else {
+      newState.queueCUJ = [
+        ...newState.queueCUJ,
+        generateVehicle(newTime, config, "CUJ"),
+      ];
+    }
   }
 
   // Update ferries
@@ -162,24 +200,34 @@ export function updateSimulation(
     // Handle states
     switch (ferry.state) {
       case "idle":
-        // Start loading if queue has vehicles
-        if (newState.queue.length > 0) {
-          updatedFerry.state = "loading";
+        // Start loading if queue has vehicles at current location
+        if (updatedFerry.location === "SLZ") {
+          if (newState.queueSLZ.length > 0) updatedFerry.state = "loading";
+        } else if (updatedFerry.location === "CUJ") {
+          if (newState.queueCUJ.length > 0) updatedFerry.state = "loading";
         }
         break;
 
       case "loading":
-        // Load vehicles
+        // Load vehicles from the current terminal queue
+        const currentQueue =
+          updatedFerry.location === "SLZ"
+            ? newState.queueSLZ
+            : newState.queueCUJ;
         const loadCapacity = Math.min(
           config.ferryCapacity - updatedFerry.vehicles.length,
-          newState.queue.length,
-          Math.floor(deltaMinutes / config.embarkTimePerVehicle) || 1
+          currentQueue.length,
+          Math.floor(scaledDelta / config.embarkTimePerVehicle) || 1
         );
 
         if (loadCapacity > 0) {
-          const vehiclesToLoad = newState.queue.slice(0, loadCapacity);
+          const vehiclesToLoad = currentQueue.slice(0, loadCapacity);
           updatedFerry.vehicles = [...updatedFerry.vehicles, ...vehiclesToLoad];
-          newState.queue = newState.queue.slice(loadCapacity);
+          if (updatedFerry.location === "SLZ") {
+            newState.queueSLZ = currentQueue.slice(loadCapacity);
+          } else {
+            newState.queueCUJ = currentQueue.slice(loadCapacity);
+          }
 
           // Calculate wait time
           vehiclesToLoad.forEach((v) => {
@@ -187,11 +235,16 @@ export function updateSimulation(
           });
         }
 
-        // Depart only if at least 70% capacity
-        const minCapacity = Math.ceil(0.7 * config.ferryCapacity);
+        // Depart rule: require minimum fill ratio (default 100%).
+        // Não parte com fila vazia se não estiver cheio.
+        const ratio = config.minDepartureFillRatio ?? 1.0;
+        const minCapacity = Math.ceil(ratio * config.ferryCapacity);
         if (updatedFerry.vehicles.length >= minCapacity) {
           updatedFerry.state = "crossing";
-          updatedFerry.departureTime = newTime + config.crossingTime;
+          updatedFerry.direction =
+            updatedFerry.location === "SLZ" ? "SLZ_TO_CUJ" : "CUJ_TO_SLZ";
+          updatedFerry.departureTime = newTime + config.crossingTime; // chegada prevista
+          updatedFerry.location = null; // em travessia
         }
         break;
 
@@ -201,13 +254,16 @@ export function updateSimulation(
           newTime >= updatedFerry.departureTime
         ) {
           updatedFerry.state = "unloading";
+          // ao chegar, define localização de destino
+          updatedFerry.location =
+            updatedFerry.direction === "SLZ_TO_CUJ" ? "CUJ" : "SLZ";
         }
         break;
 
       case "unloading":
         // Unload vehicles gradually
         const unloadCapacity =
-          Math.floor(deltaMinutes / config.disembarkTimePerVehicle) || 1;
+          Math.floor(scaledDelta / config.disembarkTimePerVehicle) || 1;
         const vehiclesToUnload = Math.min(
           unloadCapacity,
           updatedFerry.vehicles.length
@@ -222,6 +278,7 @@ export function updateSimulation(
         if (updatedFerry.vehicles.length === 0) {
           updatedFerry.state = "idle";
           updatedFerry.departureTime = null;
+          updatedFerry.direction = null;
         }
         break;
 

@@ -127,13 +127,32 @@ export function SystemStatusPanel({
           </p>
           {ferries.map((ferry) => {
             const utilization = calculateUtilization(ferry);
-            const stateLabel = {
-              idle: "Ocioso",
-              loading: "Embarcando",
-              crossing: "Travessia",
-              unloading: "Descarregando",
-              maintenance: "Manutenção",
-            }[ferry.state];
+            const stateLabel = (() => {
+              switch (ferry.state) {
+                case "maintenance":
+                  return "Manutenção";
+                case "idle":
+                  return `Ocioso — ${
+                    ferry.location === "SLZ" ? "São Luís" : "Cujupe"
+                  }`;
+                case "loading":
+                  return `Embarcando — ${
+                    ferry.location === "SLZ" ? "São Luís" : "Cujupe"
+                  }`;
+                case "unloading":
+                  return `Descarregando — ${
+                    ferry.location === "SLZ" ? "São Luís" : "Cujupe"
+                  }`;
+                case "crossing":
+                  if (ferry.direction === "SLZ_TO_CUJ")
+                    return "Travessia SLZ → CUJ";
+                  if (ferry.direction === "CUJ_TO_SLZ")
+                    return "Travessia CUJ → SLZ";
+                  return "Travessia";
+                default:
+                  return ferry.state;
+              }
+            })();
 
             return (
               <div key={ferry.id} className="space-y-1">

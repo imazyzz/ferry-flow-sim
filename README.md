@@ -1,73 +1,57 @@
-# Welcome to your Lovable project
+## Simulação de Fila de Ferry
 
-## Project info
+### Objetivo
 
-**URL**: https://lovable.dev/projects/70e787cb-4888-4a7d-a6f0-78e61876d893
+Modelar operação diária de um sistema de ferry com múltiplos horários de pico, permitindo análise de formação de filas, utilização e impacto de parâmetros operacionais. Inclui aceleração de tempo fidedigna (1x, 2x, 5x, 10x) sem distorcer proporções dos processos internos.
 
-## How can I edit this code?
+### Dataset Padronizado (Unidades em Minutos)
 
-There are several ways of editing your application.
+| Parâmetro                     | Valor                      | Observação                               |
+| ----------------------------- | -------------------------- | ---------------------------------------- |
+| Ferries ativos                | 4                          | `ferryCount`                             |
+| Capacidade por ferry          | 50 veículos                | `ferryCapacity`                          |
+| Frequência referência         | 60 min                     | `departureFrequency` (não força partida) |
+| Operação                      | 06:00–22:00                | `operationStart`/`operationEnd`          |
+| Chegadas diárias              | 1200                       | `dailyArrivals`                          |
+| Horários de pico              | 7–9 / 17–19                | `peakHours`                              |
+| % chegadas no pico            | 40%                        | `peakPercentage`                         |
+| Composição frota              | 80% carros / 20% caminhões | `carPercentage`                          |
+| Tempo embarque por veículo    | 0.25 min (~15s)            | Interpretado (ver Assunções)             |
+| Tempo travessia               | 80 min                     | `crossingTime`                           |
+| Tempo desembarque por veículo | 0.25 min (~15s)            | `disembarkTimePerVehicle`                |
+| Espera média fila normal      | 20 min                     | Métrica alvo (não hard-coded)            |
+| Espera média fila pico        | 90 min                     | Métrica alvo                             |
 
-**Use Lovable**
+### Assunções Importantes
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/70e787cb-4888-4a7d-a6f0-78e61876d893) and start prompting.
+1. Tempo de embarque/desembarque informado como “15 minutos” foi tratado como 15 segundos (0.25 min) para manter viabilidade operacional. Ajuste para `15` se deseja simular condição extrema.
+2. Partida do ferry ocorre ao atingir ≥70% da capacidade carregada (heurística simples). Pode ser refinado para obedecer janelas fixas de 60 min.
+3. Tempos médios de espera (20 / 90 min) são usados para comparação indireta; não são forçados no algoritmo.
+4. Manutenção e falhas continuam probabilísticas conforme implementação original.
 
-Changes made via Lovable will be committed automatically to this repo.
+### Escala de Velocidade (Aceleração)
 
-**Use your preferred IDE**
+Você pode alternar entre 1x, 2x, 5x, 10x. A engine recebe `timeScale` e avança o relógio interno multiplicando o delta lógico, mantendo a fidelidade dos tempos de processo.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+### Como Rodar
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Ajuste parâmetros no painel lateral ou use cenários pré-definidos.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Extensões Futuras Sugeridas
 
-**Use GitHub Codespaces**
+- Implementar partida forçada em intervalos exatos (cron) além do critério de 70%.
+- Introduzir modelo de fila M/M/c analítico para comparação de métricas simuladas.
+- Armazenar histórico de eventos (embarques, partidas) para exportação.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### Tecnologias
 
-## What technologies are used for this project?
+Vite • TypeScript • React • shadcn-ui • Tailwind CSS • Radix UI • React Query
 
-This project is built with:
+### Licença
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/70e787cb-4888-4a7d-a6f0-78e61876d893) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Uso interno educacional/demonstração. Ajuste conforme necessidade.

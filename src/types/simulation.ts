@@ -1,16 +1,19 @@
-export type VehicleType = 'car' | 'truck';
+export type VehicleType = "car" | "truck";
+export type Terminal = "SLZ" | "CUJ";
+export type RouteDirection = "SLZ_TO_CUJ" | "CUJ_TO_SLZ";
 
-export type FerryState = 
-  | 'idle'
-  | 'loading'
-  | 'crossing'
-  | 'unloading'
-  | 'maintenance';
+export type FerryState =
+  | "idle"
+  | "loading"
+  | "crossing"
+  | "unloading"
+  | "maintenance";
 
 export interface Vehicle {
   id: string;
   type: VehicleType;
   arrivalTime: number;
+  origin: Terminal;
 }
 
 export interface Ferry {
@@ -20,12 +23,15 @@ export interface Ferry {
   capacity: number;
   departureTime: number | null;
   maintenanceUntil: number | null;
+  location: Terminal | null; // null quando em travessia
+  direction: RouteDirection | null; // somente durante 'crossing'
 }
 
 export interface SimulationState {
   time: number; // minutes since 6:00
   ferries: Ferry[];
-  queue: Vehicle[];
+  queueSLZ: Vehicle[];
+  queueCUJ: Vehicle[];
   isRunning: boolean;
   vehiclesProcessed: number;
   totalWaitTime: number;
@@ -53,4 +59,5 @@ export interface SimulationConfig {
   maintenanceInterval: number; // days
   maintenanceDuration: number; // hours
   downtimeProbability: number; // percentage
+  minDepartureFillRatio?: number; // 0..1, exige esta ocupação mínima antes de partir (default 1.0)
 }

@@ -1,6 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { Ship } from "lucide-react";
-import { SimulationState, SimulationConfig } from "@/types/simulation";
+import {
+  SimulationState,
+  SimulationConfig,
+  Terminal,
+} from "@/types/simulation";
 import {
   createInitialState,
   updateSimulation,
@@ -45,7 +49,7 @@ const Index = () => {
   };
 
   const getSystemStatus = (): "NORMAL" | "ALERTA" | "COLAPSO" => {
-    const queueLength = state.queue.length;
+    const queueLength = state.queueSLZ.length + state.queueCUJ.length;
     const avgUtil = calculateAvgUtilization();
     const avgWait = calculateAvgWaitTime();
 
@@ -81,9 +85,10 @@ const Index = () => {
 
   useEffect(() => {
     if (state.isRunning) {
+      // Mantemos o intervalo real fixo e escalamos apenas o tempo lógico (fidedigno)
       intervalRef.current = window.setInterval(() => {
-        setState((prev) => updateSimulation(prev, config, speed));
-      }, 1000 / speed);
+        setState((prev) => updateSimulation(prev, config, 1, speed));
+      }, 1000);
     } else {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -135,6 +140,8 @@ const Index = () => {
             capacity: newConfig.ferryCapacity,
             departureTime: null,
             maintenanceUntil: null,
+            location: (i % 2 === 0 ? "SLZ" : "CUJ") as Terminal,
+            direction: null,
           };
         }
       );
@@ -146,7 +153,7 @@ const Index = () => {
     <div className="min-h-screen bg-gradient-subtle">
       {/* Alert Banner */}
       <AlertBanner
-        queueLength={state.queue.length}
+        queueLength={state.queueSLZ.length + state.queueCUJ.length}
         avgUtilization={calculateAvgUtilization()}
         avgWaitTime={calculateAvgWaitTime()}
       />
@@ -185,7 +192,20 @@ const Index = () => {
           {/* Simulation Area */}
           <div className="space-y-6">
             {/* Queue */}
-            <QueueLane queue={state.queue} />
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <h2 className="text-sm font-semibold text-foreground mb-2">
+                  Fila — São Luís (SLZ)
+                </h2>
+                <QueueLane queue={state.queueSLZ} />
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold text-foreground mb-2">
+                  Fila — Cujupe (CUJ)
+                </h2>
+                <QueueLane queue={state.queueCUJ} />
+              </div>
+            </div>
 
             {/* Ferries */}
             <div className="space-y-3">
@@ -209,14 +229,14 @@ const Index = () => {
               isPeak={isPeak()}
               speed={speed}
               vehiclesProcessed={state.vehiclesProcessed}
-              queueLength={state.queue.length}
+              queueLength={state.queueSLZ.length + state.queueCUJ.length}
               onPlayPause={handlePlayPause}
               onReset={handleReset}
               onSpeedChange={setSpeed}
             />
 
             <SystemStatusPanel
-              queueLength={state.queue.length}
+              queueLength={state.queueSLZ.length + state.queueCUJ.length}
               ferries={state.ferries}
               avgWaitTime={calculateAvgWaitTime()}
               systemStatus={getSystemStatus()}
